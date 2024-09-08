@@ -6,6 +6,7 @@ import "./providers/menu.dart";
 import "./providers/pointer.dart";
 import "./menu.dart";
 import "./body.dart";
+import "./style.dart";
 
 class HomeScreen extends StatefulWidget {
 	const HomeScreen({ super.key });
@@ -28,6 +29,13 @@ class _HomeScreenState extends State<HomeScreen> {
 	@override
 	Widget build(BuildContext context) {
 		final screenSize = MediaQuery.of(context).size;
+		double menuWidth = screenSize.width * 0.2;
+
+		if (menuWidth >= maxMenuWidth) {
+			menuWidth = maxMenuWidth;
+		} else if (menuWidth <= minMenuWidth) {
+			menuWidth = minMenuWidth;
+		}
 
 		return Theme(
 			data: ThemeData.dark(),
@@ -49,7 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
 									left: 0,
 									top: 0,
 									height: screenSize.height,
-									width: 285,
+									width: menuWidth,
 									child: const MenuContext()
 								),
 
@@ -57,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
 								Theme(
 									data: ThemeData.light(),
 									child: MainContent(
-										scaleRadio: 1 - 285 / screenSize.width
+										scaleRadio: 1 - menuWidth / screenSize.width
 									)
 								)
 							],

@@ -1,27 +1,27 @@
 import "package:flutter/material.dart";
 
+import "./style.dart";
+
 class MenuContext extends StatelessWidget {
-	const MenuContext({ super.key });
+	const MenuContext({
+		super.key
+	});
 
 	@override
 	Widget build(BuildContext context) {
 		final screenSize = MediaQuery.of(context).size;
 
-		return Padding(
+		return Container(
+			constraints: const BoxConstraints.expand(),
 			padding: EdgeInsets.symmetric(
 				vertical: screenSize.height * 0.2 / 2 * 0.6,
-				horizontal: 10
+				horizontal: menuHorizontalPadding
 			),
-			child: Column(
-				children: <Widget>[
-					const QuickDescription()
-				].map((widget) =>
-					SizedBox(
-						width: double.infinity,
-						child: widget
-					))
-				.toList(),
-			)
+			child: const Column(
+				children: [
+					AutoScale(child: QuickDescription())
+				],
+			),
 		);
 	}
 
@@ -42,6 +42,22 @@ class MenuContext extends StatelessWidget {
 					)
 				],
 			)
+		);
+	}
+}
+
+class AutoScale extends StatelessWidget {
+    const AutoScale({ super.key, required this.child });
+	final Widget child;
+
+	@override
+	Widget build(BuildContext context) {
+		return FittedBox(
+			fit: BoxFit.scaleDown,
+			child: SizedBox(
+				width: maxMenuWidth - menuHorizontalPadding,
+				child: child,
+			),
 		);
 	}
 }
