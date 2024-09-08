@@ -9,6 +9,11 @@ void main() {
 		DeviceOrientation.landscapeLeft,
 		DeviceOrientation.landscapeRight
 	]);
+	SystemChrome.setEnabledSystemUIMode(
+		SystemUiMode.manual,
+		overlays: []
+	);
+
 	runApp(const App());
 }
 

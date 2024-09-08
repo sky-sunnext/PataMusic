@@ -2,7 +2,7 @@ import "package:flutter/material.dart" show Color;
 import "./components/kinesis-circle/main.dart" show PositionOffset, KinesisCircle;
 
 const double maxMenuWidth = 300;
-const double minMenuWidth = 280;
+const double minMenuWidth = 220;
 const double menuHorizontalPadding = 10;
 
 final List<KinesisCircle> kinesisCircles = [
