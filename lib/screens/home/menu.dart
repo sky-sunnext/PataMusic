@@ -104,24 +104,28 @@ class QuickDescription extends StatelessWidget {
 									width: 56
 								),
 							),
-							const SizedBox(width: 8),
-							const Column(
-								children: [
-									Row(
-										children: [
-											Text("PataMusic", style: titleStyle),
-											Text(" @ ACGFun", style: subtitleStyle),
-										],
-									),
-									Row(
-										children: [
-											Text("Developer By ", style: contentStyle),
-											Badge(
-												label: Text("HelloK", style: contentStyle)
-											)
-										],
-									)
-								],
+							const Expanded(
+								child: Column(
+									mainAxisAlignment: MainAxisAlignment.center,
+									children: [
+										Row(
+											mainAxisSize: MainAxisSize.min,
+											children: [
+												Text("PataMusic", style: titleStyle),
+												Text(" @ ACGFun", style: subtitleStyle),
+											],
+										),
+										Row(
+											mainAxisSize: MainAxisSize.min,
+											children: [
+												Text("Developer By ", style: contentStyle),
+												Badge(
+													label: Text("HelloK", style: contentStyle)
+												)
+											],
+										)
+									],
+								)
 							)
 						],
 					),
