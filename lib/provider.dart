@@ -7,15 +7,22 @@ class DeviceInfo {
 		(defaultTargetPlatform == TargetPlatform.android
 		|| defaultTargetPlatform == TargetPlatform.iOS
 		|| defaultTargetPlatform == TargetPlatform.fuchsia);
-	bool get isWebDesktop => !isWebMobile;
+	bool get isWebDesktop=> isWebMobile;
 
-	final bool _isMobile =
-		Platform.isAndroid
-		|| Platform.isFuchsia
-		|| Platform.isIOS;
-	bool get isMobile => isWebMobile || _isMobile;
+	late bool _isMobile;
+	bool get isMobile => _isMobile;
 	bool get isDesktop => !isMobile;
 
-	DeviceInfo();
+	DeviceInfo() {
+		if (isWeb) {
+			// Web
+			_isMobile = isWebMobile;
+		} else {
+			_isMobile =
+				Platform.isAndroid
+				|| Platform.isFuchsia
+				|| Platform.isIOS;
+		}
+	}
 }
 
