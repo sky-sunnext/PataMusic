@@ -1,7 +1,8 @@
 import "package:flutter/material.dart";
+import "package:provider/provider.dart";
 import "package:flutter/services.dart";
-
 import "./router.dart";
+import "./provider.dart";
 
 void main() {
 	WidgetsFlutterBinding.ensureInitialized();
@@ -14,7 +15,12 @@ void main() {
 		overlays: []
 	);
 
-	runApp(const App());
+	runApp(MultiProvider(
+		providers: [
+			Provider<DeviceInfo>.value(value: DeviceInfo())
+		],
+		child: const App(),
+	));
 }
 
 class App extends StatelessWidget {

@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
 import "package:glassmorphism_ui/glassmorphism_ui.dart";
+import "package:patamusic/provider.dart";
 
 import "./providers/menu.dart";
 import "./providers/pointer.dart";
@@ -37,13 +38,33 @@ class _HomeScreenState extends State<HomeScreen> {
 			menuWidth = minMenuWidth;
 		}
 
+		Widget Function({ required Widget child }) louseListener;
+
+		if(context.read<DeviceInfo>().isDesktop) {
+			// 桌面
+			louseListener = ({ required child }) =>
+				MouseRegion(
+					onHover: (event) {
+						pointerStatus.position = event.position;
+						pointerStatus.update();
+					},
+					child: child,
+				);
+		} else {
+			// 移动
+			louseListener = ({ required child }) =>
+				Listener(
+					onPointerMove: (event) {
+						pointerStatus.position = event.position;
+						pointerStatus.update();
+					},
+					child: child,
+				);
+		}
+
 		return Theme(
 			data: ThemeData.dark(),
-			child: MouseRegion(
-				onHover: (event) {
-					pointerStatus.position = event.position;
-					pointerStatus.update();
-				},
+			child: louseListener(
 				child: Scaffold(
 					body: MultiProvider(
 						providers: [
