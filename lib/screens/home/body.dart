@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "package:go_router/go_router.dart";
 import "package:provider/provider.dart";
 import "./providers/menu.dart";
 import "./providers/pointer.dart";
@@ -195,11 +196,11 @@ class _Content extends StatelessWidget {
     	return Container(
 			constraints: const BoxConstraints.expand(),
 			padding: const EdgeInsets.all(25),
-			child: const Column(
+			child: Column(
 				children: [
-					SizedBox(height: 20),
-					Text("ACGFun 听歌识曲", style: titleStyle),
-					Row(
+					const SizedBox(height: 20),
+					const Text("ACGFun 听歌识曲", style: titleStyle),
+					const Row(
 						mainAxisSize: MainAxisSize.min,
 						children: [
 							Icon(Icons.star_rate_rounded),
@@ -209,7 +210,13 @@ class _Content extends StatelessWidget {
 							Icon(Icons.star_rate_rounded),
 						]
 					),
-					SizedBox(height: 20),
+					const SizedBox(height: 20),
+					TextButton(
+						onPressed: () {
+							context.go("/game");
+						},
+						child: const Text("游戏 TEST")
+					)
 				],
 			)
 		);
