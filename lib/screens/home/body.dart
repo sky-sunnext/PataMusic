@@ -85,7 +85,7 @@ class _MainContentState extends State<MainContent> with TickerProviderStateMixin
 							children: [
 								_BgmLoading(),
 								_Background(),
-								Center(
+								Align(
 									child: FittedBox(
 										fit: BoxFit.fill,
 										child: SizedBox(
