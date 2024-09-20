@@ -2,6 +2,7 @@ import "dart:math";
 
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
+import "package:patamusic/provider.dart";
 import "../card/main.dart";
 
 class _CardNotifier with ChangeNotifier {
@@ -82,6 +83,30 @@ class CardListComponent extends StatelessWidget {
 	}
 }
 
+class _CardState with ChangeNotifier {
+    bool _isHover = false;
+	bool get isHover => _isHover;
+	void enterHover () {
+		_isHover = true;
+		notifyListeners();
+	}
+	void leaveHover () {
+		_isHover = false;
+		notifyListeners();
+	}
+
+	final List<void Function()> _tapListener = [];
+	List<void Function()> get tapListener => _tapListener;
+	void addTapListener (void Function() listener) {
+		_tapListener.add(listener);
+	}
+	void emitTapListener () {
+		for (final listener in _tapListener) {
+			listener();
+		}
+	}
+}
+
 // 最外层监视
 class CardComponent extends StatelessWidget {
     const CardComponent({
@@ -98,21 +123,24 @@ class CardComponent extends StatelessWidget {
 
 	@override
 	Widget build(BuildContext context) {
+		final state = _CardState();
+		final bool isDesktop = context.read<DeviceInfo>().isDesktop;
+
 		return GestureDetector(
 			// 点击卡片
 			onTap: () {
-				
+				state.emitTapListener();
 			},
 			child: MouseRegion(
-				onEnter: (event) {
-
+				onEnter: !isDesktop ? null : (event) {
+					state.enterHover();
 				},
-				onExit: (event) {
-				
+				onExit: !isDesktop ? null : (event) {
+					state.leaveHover();
 				},
 				child: MultiProvider(
 					providers: [
-						Provider.value(value: "123")
+						Provider<_CardState>.value(value: state)
 					],
 					child: CardFrame(
 						parent: this,
@@ -146,6 +174,11 @@ class _CardFrameState extends State<CardFrame> with TickerProviderStateMixin {
 	void initState() {
 	    super.initState();
 
+		// 点击事件
+		context.watch<_CardState>().addTapListener(() {
+			
+		});
+
 		controller = AnimationController(
 			duration: const Duration(milliseconds: 150),
 			vsync: this
@@ -158,10 +191,10 @@ class _CardFrameState extends State<CardFrame> with TickerProviderStateMixin {
 	    super.dispose();
 	}
 
-	bool isHover = false;
-
 	@override
 	Widget build(BuildContext context) {
+		final bool isHover = context.watch<_CardState>().isHover;
+
 		return AnimatedBuilder(
 			animation: controller,
 			builder: (context, _) => Positioned(
@@ -174,7 +207,11 @@ class _CardFrameState extends State<CardFrame> with TickerProviderStateMixin {
 						border: Border.all(color: Colors.black87, width: 12),
 						borderRadius: BorderRadius.circular(24),
 					),
-					child: ,
+					child: const Stack(
+						children: [
+
+						],
+					),
 				),
 			)
 		);
