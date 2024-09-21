@@ -3,7 +3,7 @@ import "dart:math";
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
 import "package:patamusic/provider.dart";
-import "../card/main.dart";
+import "../card/star.dart";
 
 class _CardNotifier with ChangeNotifier {
 	int _id = -1;
@@ -15,7 +15,7 @@ class _CardNotifier with ChangeNotifier {
 }
 
 const double _cardRadio = 300 / 450;
-const double _minCardGap = 20;
+const double _minCardGap = 40;
 class CardListComponent extends StatelessWidget {
 	const CardListComponent({
 		super.key,
@@ -39,6 +39,8 @@ class CardListComponent extends StatelessWidget {
 			builder: (context, box) {
 				final double width = max(box.minWidth, box.maxWidth);
 				final double height = max(box.minHeight, box.maxHeight);
+				final backgroundSize = Size(width, height);
+				debugPrint("Card list size: ($width, $height)");
 
 				double cardWidth, cardHeight, cardGap;
 				cardGap = _minCardGap;	// 默认为最小间隔
@@ -47,11 +49,13 @@ class CardListComponent extends StatelessWidget {
 				if ( (height * _cardRadio * cardCounts) /* 卡片总宽度 */
 					+ cardGap * (cardCounts - 1) /* 最小间隔 */
 					> width /* 如果比总宽度大 */) {
+					debugPrint("Larger than layout width");
 					// 去掉最小间隔算最终长宽
 					cardWidth = (width - cardGap * (cardCounts - 1))
 						/ cardCounts;
-					cardHeight = cardWidth * _cardRadio;
+					cardHeight = cardWidth / _cardRadio;
 				} else {
+					debugPrint("Gap is to small");
 					// 间隔不是最小的
 					cardGap = (width - cardWidth * cardCounts) /
 						(cardCounts - 1);
@@ -60,7 +64,9 @@ class CardListComponent extends StatelessWidget {
 
 				return Container(
 					constraints: box,
-					child: Provider<_CardNotifier>.value(
+					width: width,
+					height: height,
+					child: ChangeNotifierProvider<_CardNotifier>.value(
 						value: _CardNotifier(),
 						child: Stack(
 							clipBehavior: Clip.none,
@@ -69,10 +75,22 @@ class CardListComponent extends StatelessWidget {
 								double offsetX = 0, offsetY = 0;
 								offsetX = (cardWidth + cardGap) * index;
 
-								return CardComponent(
-									fixed: Offset(offsetX, offsetY),
-									cardSize: cardSize,
+								final card = CardData(
 									cardId: index,
+									cardSize: cardSize,
+									bgSize: backgroundSize,
+									fixed: Offset(offsetX, offsetY)
+								);
+
+								return FutureBuilder(
+									future: Future.delayed(Duration(milliseconds: 200 * index)),
+									builder: (context, snapshot) {
+										if (snapshot.connectionState == ConnectionState.done) {
+											return CardComponent(card: card);
+										}
+
+										return const Positioned(child: SizedBox());
+									}
 								);
 							}),
 						),
@@ -83,107 +101,146 @@ class CardListComponent extends StatelessWidget {
 	}
 }
 
-class _CardState with ChangeNotifier {
-    bool _isHover = false;
-	bool get isHover => _isHover;
-	void enterHover () {
-		_isHover = true;
-		notifyListeners();
-	}
-	void leaveHover () {
-		_isHover = false;
-		notifyListeners();
-	}
+class CardData {
+	final int cardId;
+	final Size cardSize;
+	final Size bgSize;
+	final Offset fixed;
 
-	final List<void Function()> _tapListener = [];
-	List<void Function()> get tapListener => _tapListener;
-	void addTapListener (void Function() listener) {
-		_tapListener.add(listener);
-	}
-	void emitTapListener () {
-		for (final listener in _tapListener) {
-			listener();
-		}
-	}
+	CardData({
+		required this.cardId,
+		required this.cardSize,
+		required this.bgSize,
+		required this.fixed
+	});
 }
 
 // 最外层监视
-class CardComponent extends StatelessWidget {
-    const CardComponent({
+class CardEvents extends StatelessWidget {
+    const CardEvents({
 		super.key,
 
-		required this.cardId,
-		required this.cardSize,
-		required this.fixed
+		required this.child,
+		required this.onTap,
+		required this.onEnter,
+		required this.onExit,
 	});
 
-	final int cardId;
-	final Size cardSize;
-	final Offset fixed;
+	final Widget child;
+	final void Function() onTap;
+	final void Function() onEnter;
+	final void Function() onExit;
 
 	@override
 	Widget build(BuildContext context) {
-		final state = _CardState();
 		final bool isDesktop = context.read<DeviceInfo>().isDesktop;
 
 		return GestureDetector(
 			// 点击卡片
-			onTap: () {
-				state.emitTapListener();
-			},
+			onTap: onTap,
 			child: MouseRegion(
-				onEnter: !isDesktop ? null : (event) {
-					state.enterHover();
-				},
-				onExit: !isDesktop ? null : (event) {
-					state.leaveHover();
-				},
-				child: MultiProvider(
-					providers: [
-						Provider<_CardState>.value(value: state)
-					],
-					child: CardFrame(
-						parent: this,
-					),
-				),
+				onEnter: !isDesktop ? null : (event) => onEnter(),
+				onExit: !isDesktop ? null : (event) => onExit(),
+				child: child
 			),
 		);
 	}
 }
 
 // 卡片形状
-class CardFrame extends StatefulWidget {
-	const CardFrame({
+class CardComponent extends StatefulWidget {
+	const CardComponent({
 		super.key,
 
-		required this.parent
+		required this.card
 	});
 
-	final CardComponent parent;
+	final CardData card;
 
 	@override
-	State<CardFrame> createState() => _CardFrameState();
+	State<CardComponent> createState() => _CardComponentState();
 }
 
-class _CardFrameState extends State<CardFrame> with TickerProviderStateMixin {
-	late final parent = widget.parent;
+class _CardComponentState extends State<CardComponent> with TickerProviderStateMixin {
+	// 入场动画
 	late AnimationController controller;
+
+	Animation<Size>? cardSize;
 	late Animation<Offset> cardPosition;
+	// late Animation<double> cardOpacity;
+	late Animation<Matrix4> cardMatrix;
+
+	late Animation<Matrix4> starMatrix;
+
+	final defaultMatrix = Tween<Matrix4>(
+		begin: Matrix4.rotationY(pi / 2),
+		end: Matrix4.rotationY(0)
+	);
+
+	void initEnterAnimation () {
+		controller = AnimationController(
+			duration: const Duration(milliseconds: 1600),
+			vsync: this
+		);
+
+		// 星星翻转
+		starMatrix = defaultMatrix.animate(CurvedAnimation(
+			parent: controller,
+			curve: Curves.elasticInOut
+		));
+
+		// 卡片翻转
+		cardMatrix = defaultMatrix.animate(CurvedAnimation(
+			parent: controller,
+			// 只需要持续一半时间
+			curve: const Interval(0, 0.5, curve: Curves.easeOutBack)
+		));
+
+		// 卡片位置
+		final centerOffset = Offset(
+			(card.bgSize.width - card.cardSize.width) / 2,
+			card.bgSize.height + _minCardGap * 2
+		);
+
+		cardPosition = Tween<Offset>(
+			begin: centerOffset,
+			end: card.fixed
+		).animate(CurvedAnimation(
+			parent: controller,
+			curve: const Interval(0, 0.5, curve: Curves.easeOutBack)
+		));
+
+		controller.forward();
+	}
+
+	void initToggleAnimation () {
+		controller = AnimationController(
+			duration: const Duration(milliseconds: 400),
+			vsync: this
+		);
+	}
+
+	late final card = widget.card;
+
+	bool enterControllerFinished = false;
 	
 	@override
 	void initState() {
 	    super.initState();
 
-		// 点击事件
-		context.watch<_CardState>().addTapListener(() {
-			
-		});
+		debugPrint("[${card.cardId}] Size: ${card.cardSize}");
 
-		controller = AnimationController(
-			duration: const Duration(milliseconds: 150),
-			vsync: this
-		);
+		initEnterAnimation();
+
+		// 第一次动画结束后
+		controller.forward().orCancel.whenComplete(() {
+			enterControllerFinished = true;
+
+			initToggleAnimation();
+		});
 	}
+
+	bool isHover = false;
 
 	@override
 	void dispose() {
@@ -193,27 +250,163 @@ class _CardFrameState extends State<CardFrame> with TickerProviderStateMixin {
 
 	@override
 	Widget build(BuildContext context) {
-		final bool isHover = context.watch<_CardState>().isHover;
-
 		return AnimatedBuilder(
 			animation: controller,
 			builder: (context, _) => Positioned(
+				left: cardPosition.value.dx,
+				top: cardPosition.value.dy,
+				width: (cardSize?.value ?? card.cardSize).width,
+				height: (cardSize?.value ?? card.cardSize).height,
 				// 卡片内容
-				child: Container(
-					width: parent.cardSize.width,
-					height: parent.cardSize.height,
-					decoration: BoxDecoration(
-						color: Colors.black38,
-						border: Border.all(color: Colors.black87, width: 12),
-						borderRadius: BorderRadius.circular(24),
+				child: CardEvents(
+					onEnter: enterHoverCard,
+					onExit: leaveHoverCard,
+					onTap: () {
+						if (enterControllerFinished) {
+							tapCard();
+						}
+					},
+					child: TweenAnimationBuilder(
+						tween: Tween<double>(
+							begin: 1,
+							end: scaleRadio
+						),
+						builder: (context, radio, child) => Transform.scale(
+							scale: radio,
+							child: child
+						),
+						duration: const Duration(milliseconds: 200),
+						child: CardFrame(
+							cardMatrix: cardMatrix.value,
+							starMatrix: starMatrix.value
+						),
 					),
-					child: const Stack(
-						children: [
-
-						],
-					),
-				),
+				)
 			)
+		);
+	}
+
+	double scaleRadio = 1;
+
+	void enterHoverCard() {
+		if (context.read<_CardNotifier>().id != -1) {
+			return;
+		}
+
+		isHover = true;
+
+		setState(() {
+			scaleRadio = 0.95;
+		});
+	}
+
+	void leaveHoverCard() {
+		if (context.read<_CardNotifier>().id != -1) {
+			return;
+		}
+
+		isHover = false;
+
+		setState(() {
+			scaleRadio = 1;
+		});
+	}
+
+	void tapCard() {
+		// context.read<_CardNotifier>().choose(card.cardId);
+	}
+}
+
+class CardFrame extends StatelessWidget {
+    const CardFrame({
+		super.key,
+		
+		required this.cardMatrix,
+		required this.starMatrix
+	});
+
+	final Matrix4 cardMatrix;
+	final Matrix4 starMatrix;
+
+	@override
+	Widget build(BuildContext context) {
+		return Container(
+			constraints: const BoxConstraints.expand(),
+			transform: cardMatrix,
+			transformAlignment: Alignment.center,
+			decoration: BoxDecoration(
+				color: Colors.black38,
+				border: Border.all(color: Colors.black87, width: 12),
+				borderRadius: BorderRadius.circular(24),
+			),
+			child: Stack(
+				children: [
+					Positioned(
+						top: 40,
+						left: 20,
+						child: CardStar(
+							width: 30,
+							height: 100,
+							borderColor: Colors.black,
+							backgdColor: Colors.black,
+							shadowColor: Colors.black,
+							matrix: starMatrix,
+						)
+					),
+					Positioned(
+						bottom: 5,
+						right: 20,
+						child: CardStar(
+							width: 50,
+							height: 120,
+							borderColor: Colors.black,
+							backgdColor: Colors.black,
+							shadowColor: Colors.black,
+							matrix: starMatrix,
+						)
+					)
+				],
+			),
+		);
+	}
+}
+
+class CardStar extends StatelessWidget {
+    const CardStar({
+		super.key,
+
+		required this.matrix,
+
+		required this.width,
+		required this.height,
+
+		required this.borderColor,
+		required this.backgdColor,
+		required this.shadowColor
+	});
+
+	final Matrix4 matrix;
+
+	final double width;
+	final double height;
+
+	final Color borderColor;
+	final Color backgdColor;
+	final Color shadowColor;
+
+	@override
+	Widget build(BuildContext context) {
+		return Transform(
+			transform: matrix,
+			alignment: Alignment.center,
+			child: CustomPaint(
+				size: Size(width, height),
+				painter: StarPainter(
+					borderColor: borderColor,
+					backgdColor: backgdColor,
+					shadowColor: shadowColor
+				),
+			),
 		);
 	}
 }
