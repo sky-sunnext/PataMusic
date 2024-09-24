@@ -1,7 +1,7 @@
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
 import "package:glassmorphism_ui/glassmorphism_ui.dart";
-import "package:patamusic/provider.dart";
+import "package:patamusic/providers.dart";
 
 import "./providers/menu.dart";
 import "./providers/pointer.dart";

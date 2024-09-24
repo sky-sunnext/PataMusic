@@ -1,8 +1,7 @@
 import "package:flutter/material.dart";
 
-// import "./components/card/main.dart";
-// import "./components/card/star.dart";
 import "./components/gamecard/main.dart";
+// import "./components/card/star.dart";
 
 class GameScreen extends StatefulWidget {
 	const GameScreen({ super.key });
@@ -41,8 +40,8 @@ class _GameScreenState extends State<GameScreen> {
 									),
 									child: SizedBox(
 										height: 600,
-										child: CardListComponent(
-											cardList: List.generate(6, (_) => {}),
+										child: CardsComponent(
+											cardList: List.generate(6, (_) => CardItem()),
 										),
 									),
 								),

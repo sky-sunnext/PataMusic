@@ -1,5 +1,5 @@
 import "package:flutter/material.dart";
-import "package:patamusic/provider.dart";
+import "package:patamusic/providers.dart";
 import "package:provider/provider.dart";
 import "dart:math" as math;
 import "./star.dart";

@@ -2,7 +2,7 @@ import "package:flutter/material.dart";
 import "package:provider/provider.dart";
 import "package:flutter/services.dart";
 import "./router.dart";
-import "./provider.dart";
+import "providers.dart";
 
 void main() {
 	WidgetsFlutterBinding.ensureInitialized();
