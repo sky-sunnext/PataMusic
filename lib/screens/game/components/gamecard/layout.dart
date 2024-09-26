@@ -91,7 +91,10 @@ class _CardsComponent extends StatelessWidget {
 			width: layoutSize.width,
 			height: layoutSize.height,
 			padding: boxPadding,
-			child: const _Cards()
+			child: Provider<ChoiceBus>.value(
+				value: ChoiceBus(),
+				builder: (context, _) => const _Cards(),
+			)
 		);
 	}
 }

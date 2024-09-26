@@ -67,7 +67,16 @@ class StarData {
 	});
 }
 
-class CardProvider extends ChangeNotifier {
-	int id = -1;
-	void choose(int id) => { this.id = id, notifyListeners() };
+typedef ChoiceCallback = void Function(int, bool);
+
+class ChoiceBus {
+	ChoiceBus._internal();
+
+	static final _singleton = ChoiceBus._internal();
+	factory ChoiceBus()=> _singleton;
+
+	final List<ChoiceCallback> _emap = [];
+	void register(ChoiceCallback callback) => _emap.add(callback);
+	void emit(int id, [bool cancelTap = false]) => { for (final emap in _emap) emap(id, cancelTap) };
+	void remove(ChoiceCallback callback) => _emap.remove(callback);
 }
