@@ -1,3 +1,4 @@
+import "dart:async";
 import "dart:math";
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
@@ -91,8 +92,11 @@ class _CardsComponent extends StatelessWidget {
 			width: layoutSize.width,
 			height: layoutSize.height,
 			padding: boxPadding,
-			child: Provider<ChoiceBus>.value(
-				value: ChoiceBus(),
+			child: MultiProvider(
+				providers: [
+					Provider<ChoiceBus>.value(value: ChoiceBus()),
+					Provider<EnterAnimationBus>.value(value: EnterAnimationBus()),
+				],
 				builder: (context, _) => const _Cards(),
 			)
 		);
@@ -116,9 +120,17 @@ class _Cards extends StatelessWidget {
 						final card = generateCardData(context, index);
 
 						if (snapshot.connectionState == ConnectionState.done) {
+							final enterComplete = Completer<bool>();
+							if (cardList.length == index + 1) {
+								enterComplete.future.whenComplete(() {
+									context.read<EnterAnimationBus>().emit();
+								});
+							}
+
 							return CardComponent(
 								id: index,
-								card: card
+								card: card,
+								enterComplete: enterComplete,
 							);
 						}
 

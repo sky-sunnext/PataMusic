@@ -67,7 +67,20 @@ class StarData {
 	});
 }
 
+typedef EnterAnimationCallback = void Function();
 typedef ChoiceCallback = void Function(int, bool);
+
+class EnterAnimationBus {
+	EnterAnimationBus._internal();
+
+	static final _singleton = EnterAnimationBus._internal();
+	factory EnterAnimationBus()=> _singleton;
+
+	final List<EnterAnimationCallback> _emap = [];
+	void register(EnterAnimationCallback callback) => _emap.add(callback);
+	void emit() => { for (final emap in _emap) emap() };
+	void remove(EnterAnimationCallback callback) => _emap.remove(callback);
+}
 
 class ChoiceBus {
 	ChoiceBus._internal();
@@ -79,4 +92,12 @@ class ChoiceBus {
 	void register(ChoiceCallback callback) => _emap.add(callback);
 	void emit(int id, [bool cancelTap = false]) => { for (final emap in _emap) emap(id, cancelTap) };
 	void remove(ChoiceCallback callback) => _emap.remove(callback);
+}
+
+class MovementNotifier with ChangeNotifier {
+	Offset offset = Offset.zero;
+	void move(Offset offset) {
+		this.offset = offset;
+		notifyListeners();
+	}
 }

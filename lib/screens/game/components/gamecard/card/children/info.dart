@@ -13,10 +13,12 @@ class CardInfoPage extends StatelessWidget {
 		final layout = context.read<LayoutBasicData>();
 		final card = context.read<CardData>();
 		
-		return SizedBox(
-			width: layout.layoutSize.width,
-			height: layout.layoutSize.height,
+		return Container(
+			alignment: Alignment.center,
+			width: layout.cardSize.width,
+			height: layout.cardSize.height,
 			child: Stack(
+				fit: StackFit.passthrough,
 				children: [
 					...card.stars.map((star) => generateStar(context, star))
 				],

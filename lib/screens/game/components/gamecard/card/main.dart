@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:flutter/material.dart";
 import "package:flutter/services.dart" show PointerEnterEvent, PointerExitEvent;
 import "package:provider/provider.dart";
@@ -5,17 +7,26 @@ import "package:go_router/go_router.dart";
 import "dart:math";
 import "../providers.dart";
 import "./children/info.dart";
+import "./children/confirm.dart";
 
 class CardComponent extends StatefulWidget {
-	const CardComponent({ super.key, required this.id, required this.card });
+	const CardComponent({
+		super.key,
+		required this.id,
+		required this.card,
+		required this.enterComplete
+	});
 	final int id;
 	final CardData card;
+	final Completer<bool> enterComplete;
 	
 	@override
 	State<CardComponent> createState() => CardComponentState();
 }
 
 class CardComponentState extends State<CardComponent> with TickerProviderStateMixin {
+	late final movementNotifier = MovementNotifier();
+	late final canNextBus = context.read<EnterAnimationBus>();
 	late final choiceBus = context.read<ChoiceBus>();
 	late final layout = context.read<LayoutBasicData>();
 	late final card = widget.card;
@@ -28,13 +39,12 @@ class CardComponentState extends State<CardComponent> with TickerProviderStateMi
 	void initState() {
 	    super.initState();
 
-		// 创建子路由
-		initChildren();
+		childController = PageController();
 
 		// 入场动画
 		enterController = AnimationController(
 			vsync: this,
-			duration: const Duration(milliseconds: 1600)
+			duration: const Duration(milliseconds: 1400)
 		);
 
 		// Hover 动画
@@ -47,32 +57,41 @@ class CardComponentState extends State<CardComponent> with TickerProviderStateMi
 		// 点击的动画
 		tapController = AnimationController(
 			vsync: this,
-			duration: const Duration(milliseconds: 400),
-			reverseDuration: const Duration(milliseconds: 100)
+			duration: const Duration(milliseconds: 350),
+			reverseDuration: const Duration(milliseconds: 500)
 		);
 
 		initEnterAnimation(enterController);
 
 		enterController.forward().whenComplete(() {
-			initHoverAnimation(hoverController);
-
-			choiceBus.register(chooseBusEvent);
-
-			setState(() {
-				controllerIndex = 1; // 切换到点击动画
-			});
+			widget.enterComplete.complete(true);
 		});
+
+		canNextBus.register(nextBusEvent);
 	}
 
 	@override
 	void dispose() {
+		childController.dispose();
+
 		choiceBus.remove(chooseBusEvent);
+		canNextBus.remove(nextBusEvent);
 
 		enterController.dispose();
 		hoverController.dispose();
 		tapController.dispose();
 
 		super.dispose();
+	}
+
+	void nextBusEvent() {
+		initHoverAnimation(hoverController);
+
+		choiceBus.register(chooseBusEvent);
+
+		setState(() {
+			controllerIndex = 1; // 切换到点击动画
+		});
 	}
 
 	void chooseBusEvent(int newId, bool cancelTap) {
@@ -88,6 +107,23 @@ class CardComponentState extends State<CardComponent> with TickerProviderStateMi
 		Tween<Offset> position;
 		Tween<double> rotate;
 		if (newId == myId) {
+			setState(() {
+				const duration = Duration(milliseconds: 200);
+				if (cancelTap) {
+					childController.animateToPage(
+						0,
+						duration: duration,
+						curve: Curves.easeOutQuad
+					);
+				} else {
+					childController.animateToPage(
+						1,
+						duration: duration,
+						curve: Curves.easeInQuad
+					);
+				}
+			});
+
 			rotate = Tween(begin: 0, end: 0);
 
 			final newSize = layout.cardSize * 1.5;
@@ -102,12 +138,6 @@ class CardComponentState extends State<CardComponent> with TickerProviderStateMi
 				begin: card.fixed,
 				end: card.fixed + Offset(changeX, changeY)
 			);
-
-			if (cancelTap) {
-				// 取消点击
-			} else {
-
-			}
 		} else {
 			// 点击的不是自己
 			size = Tween(
@@ -115,38 +145,70 @@ class CardComponentState extends State<CardComponent> with TickerProviderStateMi
 				end: layout.cardSize
 			);
 
-			double newX;
+			double changeX;
+			double changeAngle;
 			final leftWeight = newId * (minCardGap + layout.cardSize.width)
 				+ layout.cardSize.width;
 			if (isAfter) {
 				// 在点击的元素右边
-				final propWeight = 1 - (myId - newId) / (cardsCounts - newId - 1);
+				final propWeight = (myId - newId) / (cardsCounts - newId - 1);
+				final fixpropWeight = propWeight * 0.2;
+				final unpropWeight = 1 - fixpropWeight;
 
-				final border = layout.layoutSize.topRight(const Offset(0, 0));
+				// 剩余空间
 				final expendWeight = layout.layoutSize.width - leftWeight;
+				// 均摊空间
 				final averageWeight = expendWeight / (cardsCounts - newId);
-				final linearWeight = pow(propWeight, 0.2);
+				final linearWeight = pow(unpropWeight, 1.5);
 
-				debugPrint("[$myId] Prop($linearWeight)");
-				newX = card.fixed.dx + averageWeight * linearWeight;
+				// debugPrint("[R:$myId] Prop($linearWeight)");
+				changeX = averageWeight * linearWeight;
 
-				// newX += layout.cardSize.width / 1.2;
+				changeAngle = pi / 4 * linearWeight;
 			} else {
-				final border = layout.layoutSize.topLeft(const Offset(0, 0));
-				newX = layout.layoutSize.topLeft(Offset(0,0)).dx;
+				final propWeight = (myId + 1) / newId;
+				final fixpropWeight = propWeight * 0.5;
+				final unpropWeight = fixpropWeight;
+
+				final expendWeight = leftWeight;
+				final averageWeight = expendWeight / newId;
+				final linearWeight = pow(unpropWeight, 1.5);
+
+				// debugPrint("[L:$myId] Prop($linearWeight)");
+				changeX = - averageWeight * linearWeight;
+
+				changeAngle = -pi / 4 * linearWeight;
 			}
 
 			position = Tween(
 				begin: card.fixed,
-				end: Offset(newX, card.fixed.dy)
+				end: card.fixed + Offset(changeX, 0)
 			);
 
-			rotate = Tween(begin: 0, end: 0);
+			rotate = Tween(begin: 0, end: changeAngle);
 		}
 
-		cardSize = size.animate(tapController);
-		cardPosition = position.animate(tapController);
-		cardRotate = rotate.animate(tapController);
+		// 大小
+		cardSize = size.animate(
+			CurvedAnimation(
+				parent: tapController,
+				curve: Curves.easeInQuad
+			)
+		);
+		// 位置
+		cardPosition = position.animate(
+			CurvedAnimation(
+				parent: tapController,
+				curve: Curves.easeInOutBack
+			)
+		);
+		// 旋转
+		cardRotate = rotate.animate(
+			CurvedAnimation(
+				parent: tapController,
+				curve: Curves.easeInOutBack
+			)
+		);
 
 		cardScale = Tween<double>(
 			begin: cardScale.value,
@@ -256,9 +318,7 @@ class CardComponentState extends State<CardComponent> with TickerProviderStateMi
 		));
 	}
 
-	void initTapAnimation(AnimationController controller) {
-		
-	}
+	late PageController childController;
 
 	@override
 	Widget build(BuildContext context) {
@@ -268,37 +328,28 @@ class CardComponentState extends State<CardComponent> with TickerProviderStateMi
 				parent: this,
 				child: child!
 			),
-			child: MaterialApp.router(
-				debugShowCheckedModeBanner: false,
-				builder: (context, child) {
-					return Scaffold(
-						backgroundColor: Colors.transparent,
-						body: MultiProvider(
-							providers: [
-								Provider<CardData>.value(value: card),
-								Provider<CardComponentState>.value(value: this)
-							],
-							builder: (context, _) => child!,
-						),
-					);
-				},
-				routerConfig: GoRouter(
-					routes: childrenRoutes
-				)
+			child: MultiProvider(
+				providers: [
+					Provider.value(value: card),
+					Provider.value(value: this),
+					ChangeNotifierProvider.value(value: movementNotifier)
+				],
+				builder: (context, child) => child!,
+				child: PageView.builder(
+					controller: childController,
+					itemCount: tabPages.length,
+					itemBuilder: (context, index) {
+						return tabPages.elementAt(index);
+					}
+				),
 			),
 		);
 	}
 
-	final List<GoRoute> childrenRoutes = [
-		GoRoute(path: "/", redirect: (ctx, _) => "/0"),
+	final List<Widget> tabPages = const [
+		CardInfoPage(),
+		CardConfirmPage()
 	];
-
-	void initChildren() {
-		// 默认页面
-		childrenRoutes.add(
-			GoRoute(path: "/0", builder: (c, s) => const CardInfoPage())
-		);
-	}
 
 	// 自动切换 AnimationController
 	int controllerIndex = 0;
@@ -310,10 +361,12 @@ class CardComponentState extends State<CardComponent> with TickerProviderStateMi
 	bool inHover = false;
 	bool inTap = false;
 
+	late Offset originPostion;
 	void onPointerDown(PointerDownEvent event) => setState(() {
 		choiceBus.emit(widget.id);
 		// debugPrint("Tap ${widget.id}!");
-		handlePointerMove(event.localPosition);
+		originPostion = event.localPosition;
+		handlePointerMove(originPostion);
 	});
 
 	void onPointerMove(PointerMoveEvent event) => setState(() {
@@ -326,7 +379,7 @@ class CardComponentState extends State<CardComponent> with TickerProviderStateMi
 	});
 
 	void handlePointerMove(Offset position) {
-
+		movementNotifier.move(position - originPostion);
 	}
 
 	void onHoverEnter(PointerEnterEvent event) => setState(() {
@@ -402,6 +455,7 @@ class _CardFrameContent extends StatelessWidget {
 						alignment: Alignment.center,
 						transformAlignment: Alignment.center,
 						transform: parent.cardMatrix.value,
+						clipBehavior: Clip.none,
 						child: child,
 					),
 				)
